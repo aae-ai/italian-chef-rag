@@ -4,5 +4,5 @@ langchain_community==0.4.1
 langchain_core==1.2.26
 langchain_groq==1.1.2
 langchain_pinecone==0.2.13
-pinecone==8.1.1
+pinecone
 python-dotenv==1.2.2
