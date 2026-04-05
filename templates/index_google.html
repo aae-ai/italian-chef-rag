@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chef Bot</title>
+</head>
+<body>
+    <h1>🍝 Chef Bot</h1>
+    <input id="input" placeholder="Ask something..."/>
+    <button onclick="send()">Send</button>
+    <p id="response"></p>
+
+    <script>
+        async function send() {
+            const input = document.getElementById("input").value;
+            const res = await fetch("/chat", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({message: input})
+            });
+            const data = await res.json();
+            document.getElementById("response").innerText = data.response;
+        }
+    </script>
+</body>
+</html>
