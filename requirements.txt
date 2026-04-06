@@ -6,3 +6,4 @@ langchain_groq==1.1.2
 langchain_pinecone==0.2.13
 pinecone
 python-dotenv==1.2.2
+gunicorn
