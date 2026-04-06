@@ -49,6 +49,13 @@ def health():
     return jsonify(status), 200
 
 
+@app.route('/test')
+def test():
+    """Simple test endpoint that doesn't use the bot."""
+    logger.info("Test endpoint called")
+    return jsonify({"message": "Test successful"}), 200
+
+
 @app.route('/')
 def index():
     try:
