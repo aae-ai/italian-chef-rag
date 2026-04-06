@@ -1,20 +1,26 @@
-from flask import Flask
+from flask import Flask, render_template, request, jsonify
+from rag_engine import ChefBot
 
 app = Flask(__name__)
+bot = ChefBot()
 
 @app.route('/')
-def home():
-    return """
-    <h1>✅ Italian Chef RAG - Test Page</h1>
-    <p>The basic Flask app is working on Railway!</p>
-    <p>If you see this message, the deployment is successful.</p>
-    <hr>
-    <p>Next step: We will add your RAG functionality gradually.</p>
-    """
+def index():
+    return render_template('index.html')
 
-@app.route('/health')
-def health():
-    return {"status": "healthy", "message": "App is running correctly on Railway"}
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.json
+    user_input = data.get('message')
+
+    if not user_input:
+        return jsonify({"error": "No message"}), 400
+
+    try:
+        response = bot.ask(user_input)
+        return jsonify({"response": response})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=False)
