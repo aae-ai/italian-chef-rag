@@ -1,82 +1,294 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Italian Chef Bot 🍝</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Markdown Parser -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-</head>
-<body>
-    <div class="chat-container">
-        <header>
-            <h1>🍝 Nonna's Kitchen AI</h1>
-        </header>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{{ app_name | default('Nonna\'s Kitchen AI') }} 🍝</title>
+        <link rel="stylesheet" href="/static/style.css" />
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-        <div class="chat-box" id="chat-box"></div>
-
-        <div class="input-area">
-            <input type="text" id="user-input" placeholder="Ask about Pasta, Pizza, or Tiramisu..." onkeypress="handleEnter(event)">
-            <button onclick="sendMessage()">Send</button>
+        <style>
+            .message.bot {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                max-width: 80%;
+                align-self: flex-start;
+            }
+            .bot-bubble {
+                background: #f8f9fa;
+                padding: 14px 18px;
+                border-radius: 18px 18px 4px 18px;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            }
+            .sources-panel {
+                background: #fff;
+                border: 2px solid #ff6b6b;
+                border-radius: 8px;
+                padding: 12px;
+                margin-top: 6px;
+                font-size: 13px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+            .sources-toggle {
+                background: #ff6b6b;
+                color: white;
+                border: none;
+                padding: 8px 18px;
+                border-radius: 25px;
+                cursor: pointer;
+                font-size: 13.5px;
+                font-weight: 600;
+                align-self: flex-start;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .sources-toggle:hover {
+                background: #e55a5a;
+            }
+            .source-item {
+                background: #f8f9fa;
+                border-left: 4px solid #ff6b6b;
+                padding: 10px 12px;
+                margin: 8px 0;
+                border-radius: 4px;
+            }
+            .source-item .source-title {
+                font-weight: bold;
+                color: #222;
+            }
+            .source-item .source-snippet {
+                color: #444;
+                font-size: 12.5px;
+                line-height: 1.4;
+            }
+            .message-meta {
+                font-size: 11px;
+                color: #777;
+                margin-top: 4px;
+            }
+            .badge {
+                padding: 2px 8px;
+                border-radius: 10px;
+                font-size: 10px;
+                margin-left: 6px;
+            }
+            .badge-cached {
+                background: #d4edda;
+                color: #155724;
+            }
+            .badge-live {
+                background: #fff3cd;
+                color: #856404;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <span>🍝 {{ app_name | default('Nonna\'s Kitchen AI') }}</span>
+            <span>
+                <a href="/docs" target="_blank">📖 API Docs</a> |
+                <a href="/health" target="_blank">💚 Health</a> |
+                <a href="/metrics" target="_blank">📊 Metrics</a>
+            </span>
         </div>
-    </div>
 
-    <script>
-        async function sendMessage() {
-            const inputField = document.getElementById('user-input');
-            const chatBox = document.getElementById('chat-box');
-            const message = inputField.value.trim();
+        <div class="chat-container">
+            <header>
+                <h1>🍝 {{ app_name | default('Nonna\'s Kitchen AI') }}</h1>
+                <button
+                    onclick="newChat()"
+                    style="
+                        position: absolute;
+                        top: 15px;
+                        right: 20px;
+                        background: #fff;
+                        color: #ff6b6b;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 20px;
+                        cursor: pointer;
+                    "
+                >
+                    ➕ New Chat
+                </button>
+            </header>
 
-            if (!message) return;
+            <div class="chat-box" id="chat-box"></div>
 
-            // Add User Message
-            appendMessage('user', message);
-            inputField.value = '';
+            <div class="input-area">
+                <input
+                    type="text"
+                    id="user-input"
+                    placeholder="{{ placeholder_text | default('Ask about Pasta, Pizza, or Tiramisu...') }}"
+                    onkeypress="handleEnter(event)"
+                />
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
 
-            // Add Loading State
-            const loadingId = appendMessage('bot', 'Cooking up an answer... 🍳');
+        <script>
+            let currentSessionId = "{{ initial_session_id }}";
+            let lastCacheStats = null;
 
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message })
-                });
-                const data = await response.json();
+            async function sendMessage() {
+                const inputField = document.getElementById("user-input");
+                const chatBox = document.getElementById("chat-box");
+                const message = inputField.value.trim();
+                if (!message) return;
 
-                // Remove loading, add real response
-                document.getElementById(loadingId).remove();
-                appendMessage('bot', data.response, true);
-            } catch (error) {
-                document.getElementById(loadingId).innerHTML = "Scusi, something went wrong in the kitchen.";
+                appendMessage("user", message);
+                inputField.value = "";
+
+                const loadingId = appendMessage(
+                    "bot",
+                    "Cooking up an answer... 🍳",
+                );
+
+                try {
+                    const response = await fetch("/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            message: message,
+                            session_id: currentSessionId,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    document.getElementById(loadingId).remove();
+
+                    const botContent =
+                        data.answer || data.response || "No response.";
+
+                    const cacheBadge = data.cached
+                        ? '<span class="badge badge-cached">⚡ Cached</span>'
+                        : '<span class="badge badge-live">✨ Fresh</span>';
+
+                    const metaInfo = `
+                    <div class="message-meta">
+                        ${cacheBadge}
+                        <span>⏱️ ${data.latency_ms}ms</span>
+                        ${data.sources && data.sources.length > 0 ? `<span>📚 ${data.sources.length} sources</span>` : ""}
+                    </div>
+                `;
+
+                    // === MAIN MESSAGE CONTAINER ===
+                    const msgDiv = document.createElement("div");
+                    msgDiv.className = "message bot";
+
+                    // === ANSWER BUBBLE (protected from squeezing) ===
+                    const bubble = document.createElement("div");
+                    bubble.className = "bot-bubble";
+
+                    const contentDiv = document.createElement("div");
+                    contentDiv.innerHTML = marked.parse(botContent);
+                    bubble.appendChild(contentDiv);
+                    bubble.innerHTML += metaInfo;
+
+                    msgDiv.appendChild(bubble);
+
+                    // === COLLAPSIBLE SOURCES (separate from answer) ===
+                    if (data.sources && data.sources.length > 0) {
+                        const sourcesHtml = data.sources
+                            .map(
+                                (source, i) => `
+                        <div class="source-item">
+                            <div class="source-title">📄 Source ${i + 1}: ${source.source}</div>
+                            <div class="source-snippet">${source.content.substring(0, 220)}${source.content.length > 220 ? "..." : ""}</div>
+                        </div>
+                    `,
+                            )
+                            .join("");
+
+                        msgDiv.innerHTML += `
+                        <button class="sources-toggle" onclick="toggleSources(this)">
+                            📚 Show ${data.sources.length} Source${data.sources.length > 1 ? "s" : ""}
+                        </button>
+                        <div class="sources-panel" style="display: none;">
+                            ${sourcesHtml}
+                        </div>
+                    `;
+                    }
+
+                    chatBox.appendChild(msgDiv);
+                    chatBox.scrollTop = chatBox.scrollHeight;
+
+                    updateCacheStats();
+                } catch (error) {
+                    console.error("Error:", error);
+                    document.getElementById(loadingId).innerHTML =
+                        "Scusi, something went wrong in the kitchen. 😔";
+                }
             }
-        }
 
-        function appendMessage(sender, text, isMarkdown = false) {
-            const chatBox = document.getElementById('chat-box');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${sender}`;
-            msgDiv.id = `msg-${Date.now()}`;
-
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'content';
-
-            if (isMarkdown) {
-                contentDiv.innerHTML = marked.parse(text);
-            } else {
-                contentDiv.textContent = text;
+            function toggleSources(button) {
+                const panel = button.nextElementSibling;
+                if (panel.style.display === "none") {
+                    panel.style.display = "block";
+                    button.textContent = "📚 Hide Sources";
+                } else {
+                    panel.style.display = "none";
+                    button.textContent = `📚 Show ${panel.children.length} Source${panel.children.length > 1 ? "s" : ""}`;
+                }
             }
 
-            msgDiv.appendChild(contentDiv);
-            chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
-            return msgDiv.id;
-        }
+            function appendMessage(sender, text, isMarkdown = false) {
+                const chatBox = document.getElementById("chat-box");
+                const msgDiv = document.createElement("div");
+                msgDiv.className = `message ${sender}`;
+                msgDiv.id = `msg-${Date.now()}`;
 
-        function handleEnter(e) {
-            if (e.key === 'Enter') sendMessage();
-        }
-    </script>
-</body>
+                const contentDiv = document.createElement("div");
+                contentDiv.className = "content";
+
+                if (isMarkdown) {
+                    contentDiv.innerHTML = marked.parse(text);
+                } else {
+                    contentDiv.textContent = text;
+                }
+
+                msgDiv.appendChild(contentDiv);
+                chatBox.appendChild(msgDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+                return msgDiv.id;
+            }
+
+            function newChat() {
+                if (confirm("Start a fresh conversation?")) {
+                    currentSessionId = crypto.randomUUID();
+                    document.getElementById("chat-box").innerHTML = "";
+                    appendMessage(
+                        "bot",
+                        "Buongiorno! What would you like to cook today? 🍝",
+                        true,
+                    );
+                }
+            }
+
+            function handleEnter(e) {
+                if (e.key === "Enter") sendMessage();
+            }
+
+            async function updateCacheStats() {
+                try {
+                    const response = await fetch("/stats");
+                    const stats = await response.json();
+                    lastCacheStats = stats;
+                } catch (error) {}
+            }
+
+            window.onload = async () => {
+                appendMessage(
+                    "bot",
+                    "Buongiorno! What would you like to cook today? 🍝",
+                    true,
+                );
+                await updateCacheStats();
+            };
+        </script>
+    </body>
 </html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Italian Chef Bot 🍝</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Additional styles for enhanced features */
+        .sources-panel {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        .sources-toggle {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .sources-toggle:hover {
+            background: #5a6268;
+        }
+
+        .source-item {
+            background: white;
+            border-left: 3px solid #ff6b6b;
+            padding: 8px 12px;
+            margin: 6px 0;
+            border-radius: 4px;
+        }
+
+        .source-item .source-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .source-item .source-snippet {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .message-meta {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 6px;
+        }
+
+        .badge-cached {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-live {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .stats-bar {
+            background: #343a40;
+            color: #fff;
+            padding: 8px 15px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stats-bar a {
+            color: #ff6b6b;
+            text-decoration: none;
+        }
+
+        .stats-bar a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <span>🍝 Nonna's Kitchen AI</span>
+        <span>
+            <a href="/docs" target="_blank">📖 API Docs</a> |
+            <a href="/health" target="_blank">💚 Health</a> |
+            <a href="/metrics" target="_blank">📊 Metrics</a>
+        </span>
+    </div>
+
+    <div class="chat-container">
+        <header>
+            <h1>🍝 Nonna's Kitchen AI</h1>
+            <button onclick="newChat()" style="position:absolute;top:15px;right:20px;background:#fff;color:#ff6b6b;border:none;padding:8px 16px;border-radius:20px;cursor:pointer;">
+                ➕ New Chat
+            </button>
+        </header>
+
+        <div class="chat-box" id="chat-box"></div>
+
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Ask about Pasta, Pizza, or Tiramisu..." onkeypress="handleEnter(event)">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let currentSessionId = crypto.randomUUID();
+        let lastCacheStats = null;
+
+        async function sendMessage() {
+            const inputField = document.getElementById('user-input');
+            const chatBox = document.getElementById('chat-box');
+            const message = inputField.value.trim();
+            if (!message) return;
+
+            appendMessage('user', message);
+            inputField.value = '';
+
+            const loadingId = appendMessage('bot', 'Cooking up an answer... 🍳');
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: currentSessionId
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById(loadingId).remove();
+
+                // Build message content with metadata
+                let botContent = data.response;
+
+                // Add cache badge
+                const cacheBadge = data.cached
+                    ? '<span class="badge badge-cached">⚡ Cached</span>'
+                    : '<span class="badge badge-live">✨ Fresh</span>';
+
+                // Add metadata
+                const metaInfo = `
+                    <div class="message-meta">
+                        ${cacheBadge}
+                        <span>⏱️ ${data.latency_ms}ms</span>
+                        ${data.sources && data.sources.length > 0 ? `<span>📚 ${data.sources.length} sources</span>` : ''}
+                    </div>
+                `;
+
+                // Create bot message
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message bot';
+                msgDiv.id = `msg-${Date.now()}`;
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'content';
+                contentDiv.innerHTML = marked.parse(botContent);
+
+                msgDiv.appendChild(contentDiv);
+                msgDiv.innerHTML += metaInfo;
+
+                // Add sources if available
+                if (data.sources && data.sources.length > 0) {
+                    const sourcesHtml = createSourcesPanel(data.sources);
+                    msgDiv.innerHTML += sourcesHtml;
+                }
+
+                chatBox.appendChild(msgDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                // Update cache stats
+                updateCacheStats();
+
+            } catch (error) {
+                document.getElementById(loadingId).innerHTML = "Scusi, something went wrong in the kitchen. 😔";
+            }
+        }
+
+        function createSourcesPanel(sources) {
+            const sourcesHtml = sources.map((source, index) => `
+                <div class="source-item">
+                    <div class="source-title">📄 Source ${index + 1}: ${source.source || 'Unknown'}</div>
+                    <div class="source-snippet">${source.content.substring(0, 200)}${source.content.length > 200 ? '...' : ''}</div>
+                </div>
+            `).join('');
+
+            return `
+                <button class="sources-toggle" onclick="toggleSources(this)">
+                    📚 Show ${sources.length} Source${sources.length > 1 ? 's' : ''}
+                </button>
+                <div class="sources-panel" style="display: none;">
+                    ${sourcesHtml}
+                </div>
+            `;
+        }
+
+        function toggleSources(button) {
+            const panel = button.nextElementSibling;
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                button.textContent = '📚 Hide Sources';
+            } else {
+                panel.style.display = 'none';
+                button.textContent = `📚 Show ${panel.children.length} Source${panel.children.length > 1 ? 's' : ''}`;
+            }
+        }
+
+        function appendMessage(sender, text, isMarkdown = false) {
+            const chatBox = document.getElementById('chat-box');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            msgDiv.id = `msg-${Date.now()}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'content';
+
+            if (isMarkdown) {
+                contentDiv.innerHTML = marked.parse(text);
+            } else {
+                contentDiv.textContent = text;
+            }
+
+            msgDiv.appendChild(contentDiv);
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return msgDiv.id;
+        }
+
+        function newChat() {
+            if (confirm("Start a fresh conversation?")) {
+                currentSessionId = crypto.randomUUID();
+                document.getElementById('chat-box').innerHTML = '';
+                appendMessage('bot', 'Buongiorno! What would you like to cook today? 🍝', true);
+            }
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        async function updateCacheStats() {
+            try {
+                const response = await fetch('/stats');
+                const stats = await response.json();
+                lastCacheStats = stats;
+            } catch (error) {
+                console.log('Could not fetch cache stats');
+            }
+        }
+
+        // Welcome message on load
+        window.onload = async () => {
+            appendMessage('bot', 'Buongiorno! What would you like to cook today? 🍝', true);
+
+            // Fetch initial stats
+            await updateCacheStats();
+        };
+    </script>
+</body>
+</html>

@@ -2,7 +2,7 @@ import time
 from pinecone import Pinecone, ServerlessSpec
 from langchain_pinecone import PineconeVectorStore, PineconeEmbeddings
 from langchain_community.document_loaders import JSONLoader
-from config import Config
+from core.config import Config
 
 class VectorDB:
     def __init__(self):

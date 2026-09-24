@@ -1,26 +1,19 @@
-from flask import Flask, render_template, request, jsonify
-from rag_engine import ChefBot
+"""
+ChefBot Entry Point
+===================
+"""
 
-app = Flask(__name__)
-bot = ChefBot()
+import logging
+import uvicorn
+from core.app_factory import create_app
+from core.logging import setup_logging
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
-@app.route('/chat', methods=['POST'])
-def chat():
-    data = request.json
-    user_input = data.get('message')
+app = create_app()
 
-    if not user_input:
-        return jsonify({"error": "No message"}), 400
-
-    try:
-        response = bot.ask(user_input)
-        return jsonify({"response": response})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=False)
+if __name__ == '__main__':
+    logger.info("Starting ChefBot server on http://0.0.0.0:5000")
+    uvicorn.run(app, host="0.0.0.0", port=5000)

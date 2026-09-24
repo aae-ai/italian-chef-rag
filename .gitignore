@@ -1,6 +1,51 @@
+# Byte-compiled / cache
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
 venv/
-.vscode
-chat_history.json
+env/
+ENV/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local data / uploads
+data/
+user_input_files/
+*.json
+!package*.json
+
+# Docker
+*.pid
+
+# Testing / Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+mongo-test.py
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
