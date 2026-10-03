@@ -73,6 +73,8 @@ into a single conversational workflow.
 
 At a high level, the system follows this flow:
 
+![System Flow](media/system-flowflow.png)
+
 
 
 # 🔄 RAG Pipeline
