@@ -10,6 +10,10 @@ The project combines a user-facing chat experience with a developer-oriented bac
 
 ---
 
+[![Watch the Demo](media/thumbnail.png)](https://youtu.be/uxUMuLTFJiY)
+
+-------
+
 ## ✨ What It Does
 
 Italian Chef RAG lets users interact with an AI chef through natural language.
